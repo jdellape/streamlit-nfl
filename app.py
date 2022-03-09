@@ -18,7 +18,7 @@ STAT_OPTIONS_DROP_DOWN = []
 st.sidebar.header('Filter Dataset By: ')
 selected_year = st.sidebar.selectbox('Year', list(reversed(range(2019,2022))))
 selected_position = st.sidebar.selectbox('Position',  ['QB','RB','WR','TE'])
-selected_stat_category = st.sidebar.selectbox('Stat Category',  ['advanced','regular'])
+selected_stat_category = st.sidebar.selectbox('Stat Category',  ['regular', 'advanced'])
 if selected_stat_category == 'advanced':
     STAT_OPTIONS_DROP_DOWN = ADVANCED_QB_STAT_OPTIONS
 else:
