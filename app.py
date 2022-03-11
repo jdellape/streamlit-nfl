@@ -7,61 +7,104 @@ st.title('Fantasy Football Data Explorer')
 
 st.markdown("""
 This app helps fantasy football owners make roster decisions by graphing historical player stats
-* Use the side bar to the left to dynamically filter for players and statistics of interest.
+* Use the side bar to the left to dynamically filter data.
 * **Data source:** [pro-football-reference.com](https://www.pro-football-reference.com/).
 """)
 
-REGULAR_QB_STAT_OPTIONS = ['TD', 'YDS']
-ADVANCED_QB_STAT_OPTIONS = ['BadTh', 'Prss']
-STAT_OPTIONS_DROP_DOWN = []
+SCORING_TYPES = ['Normal','PPR','DraftKings','FanDuel']
 
-st.sidebar.header('Filter Dataset By: ')
+SCORING_TYPE_COL_MATCHING = {'Normal':'FantPt', 'PPR':'PPR', 'DraftKings':'DKPt', 'FanDuel':'FDPt'}
+
+SCORING_TYPE_TOOL_TIP = {'Normal':'trad style<br/>  blah blah', 'PPR':'PPR style', 'DraftKings':'Draft Kings Style', 'FanDuel':'Fan Duel Style'}
+
+SELECTION_DETAILS_COLS = {'Normal':['FantPt','FantPtpG','Player','year'], 
+                          'PPR':['PPR','PPRpG','Player','year'],
+                          'DraftKings':['DKPt','DKPtpG','Player','year'], 
+                          'FanDuel':['FDPt','FDPtpG','Player','year']}
+
+st.sidebar.header('Filter Stripplot By: ')
 selected_year = st.sidebar.selectbox('Year', list(reversed(range(2019,2022))))
-selected_position = st.sidebar.selectbox('Position',  ['QB','RB','WR','TE'])
-selected_stat_category = st.sidebar.selectbox('Stat Category',  ['regular', 'advanced'])
-if selected_stat_category == 'advanced':
-    STAT_OPTIONS_DROP_DOWN = ADVANCED_QB_STAT_OPTIONS
-else:
-    STAT_OPTIONS_DROP_DOWN = REGULAR_QB_STAT_OPTIONS
-selected_stats = st.sidebar.selectbox('Stat To Present', STAT_OPTIONS_DROP_DOWN)
 
+st.sidebar.header('Set Stripplot y axis:')
+selected_scoring_type = st.sidebar.selectbox('Fantasy Point Scoring Style', SCORING_TYPES)
 
-# Load up json data I have hosted on github
+with st.sidebar.expander("See scoring style details"):
+     st.write('feature under construction')
+
+DATA_URL = 'https://raw.githubusercontent.com/jdellape/data-sources/main/nfl/fantasy_points_by_player_by_year.csv'
+
+# Load up data I have hosted on github
 @st.cache
-def load_json_data():
-    url = 'https://raw.githubusercontent.com/jdellape/data-sources/main/nfl/qb/season_summaries/qb_summary.json'
-    r = requests.get(url)
-    return r.json()
+def load_data(url):
+    data = pd.read_csv(url)
+    data = data[data['FantPos'].isin(['QB','RB','WR','TE'])]
+    data = data[data['FantPt'] >= 0]
+    return data
 
-#Capture and filter stat data
-tuple_list_to_analyze = []
-test_json = load_json_data()
+data = load_data(DATA_URL)
+#data = data[data['year'] == selected_year]
 
-data_set_to_analyze = list(filter(lambda d: d['category'] == selected_stat_category and d['year'] == str(selected_year), test_json))
+st.header('Write out Raw .csv file containing stats')
+st.write(data)
 
-for row in data_set_to_analyze:
-    try:
-        tuple_list_to_analyze.append((row['player_id'], row['TD_overall'], row['Yds_overall']))
-    except:
-        pass
+st.header('Test a Stripplot based on feedack from Caleb')
 
-df_qbs = pd.DataFrame(tuple_list_to_analyze, columns =['ID', 'TD', 'Yds'])
-df_qbs['Yds'] = pd.to_numeric(df_qbs['Yds'])
-df_qbs['TD'] = pd.to_numeric(df_qbs['TD'])
+#Try the altair plot caleb referenced
+selected_y = SCORING_TYPE_COL_MATCHING[selected_scoring_type]
 
-st.header('Write out Raw json file containing stats filered by user input')
-st.write(data_set_to_analyze)
+strip_plot_selector = alt.selection_single(empty='all', fields=['Player'])
 
-st.header('Test a scatter plot based upon QB Data. Hard Coded to Only Present yards by TDs')
-st.markdown("""
-Must select "regular" from Stat Category drop down in order for this to display while under development.
-""")
-#Test a scatter plot with my json data
-#Convert columns to integer for testing out a chart
-qb_scatter = alt.Chart(df_qbs).mark_circle(size=60).encode(
-    x='Yds',
-    y='TD',
-    tooltip='ID'
-).interactive()
+stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50).encode(
+    x=alt.X(
+        'jitter:Q',
+        title=None,
+        axis=alt.Axis(ticks=True, grid=False, labels=False),
+        scale=alt.Scale(),
+    ),
+    y=alt.Y(f'{selected_y}:Q',
+            scale=alt.Scale(
+                domain=(0, 450)),
+                axis=alt.Axis(title=None)),
+    color=alt.condition(strip_plot_selector,'FantPos:N', alt.value('lightgray'), legend=None),
+    tooltip='Player',
+    column=alt.Column(
+        'FantPos:N',
+        header=alt.Header(
+            labelFontSize=16,
+            labelAngle=0,
+            titleOrient='bottom',
+            labelOrient='bottom',
+            labelAlign='center',
+            labelPadding=25,
+        ),
+    ),
+).transform_calculate(
+    # Generate Gaussian jitter with a Box-Muller transform
+    jitter='sqrt(-2*log(random()))*cos(2*PI*random())'
+).configure_facet(
+    spacing=0
+).configure_view(
+    stroke=None
+).configure_axis(
+    labelFontSize=16,
+    titleFontSize=16
+).properties(
+    height=400, 
+    width=150
+).add_selection(strip_plot_selector)
 
-st.altair_chart(qb_scatter, use_container_width=True)
+#Trying to make a details line chart work here, but unsuccessful so far.
+base = alt.Chart(data).properties(
+    width=250,
+    height=250
+).add_selection(strip_plot_selector)
+
+line = base.mark_line().encode(
+    y='FantPt',
+    x='year'
+).transform_filter(
+    strip_plot_selector
+)
+#End of my attempt
+
+st.altair_chart(stripplot)
