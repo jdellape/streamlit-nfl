@@ -5,6 +5,10 @@ import altair as alt
 
 st.title('Fantasy Football Data Explorer')
 
+#This code only for allowing tooltips to display when in full screen mode (https://discuss.streamlit.io/t/tool-tips-in-fullscreen-mode-for-charts/6800/8)
+st.markdown('<style>#vg-tooltip-element{z-index: 1000051}</style>',
+             unsafe_allow_html=True)
+
 st.markdown("""
 This app helps fantasy football owners make roster decisions by graphing historical player stats
 * Use the side bar to the left to dynamically filter data.
