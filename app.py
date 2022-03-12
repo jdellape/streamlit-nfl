@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 import pandas as pd
 import altair as alt
 
@@ -46,7 +45,6 @@ def load_data(url):
     return data
 
 data = load_data(DATA_URL)
-#data = data[data['year'] == selected_year]
 
 st.header('Write out Raw .csv file containing stats')
 st.write(data)
@@ -56,12 +54,8 @@ st.header('Test a Stripplot based on feedack from Caleb')
 #Try the altair plot caleb referenced
 selected_y = SCORING_TYPE_COL_MATCHING[selected_scoring_type]
 
-strip_plot_selector = alt.selection_single(empty='all', fields=['Player'])
-
-# base = alt.Chart(data).properties(
-#     width=250,
-#     height=250
-# ).add_selection(strip_plot_selector)
+#strip_plot_selector = alt.selection_single(empty='all', fields=['Player'])
+strip_plot_selector = alt.selection_interval(encodings=['y'])
 
 stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50).encode(
     x=alt.X(
@@ -74,7 +68,8 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
             scale=alt.Scale(
                 domain=(0, 450)),
                 axis=alt.Axis(title=None)),
-    color=alt.condition(strip_plot_selector,'FantPos:N', alt.value('lightgray'), legend=None),
+    color=alt.condition(strip_plot_selector, 'FantPos', alt.value('lightgray'), legend=None),
+    #color=alt.condition(interval, 'Origin', alt.value('lightgray')
     tooltip='Player',
     column=alt.Column(
         'FantPos:N',
@@ -110,21 +105,16 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
 line = alt.Chart(data).mark_line(
     point=alt.OverlayMarkDef(color="red")
     ).encode(
+    x='year:O',
     y='FantPt',
-    x='year:O'
+    color='Player',
+    tooltip='Player'
+    #strokeDash='Player',
 ).transform_filter(
     strip_plot_selector
 ).properties(
     height=400, 
     width=675
 )
-
-    # cum_diff_chart = alt.Chart(cum_series).mark_line(
-    #     point=alt.OverlayMarkDef(color="red")
-    #     ).encode(
-    #     x=x,
-    #     y=alt.Y('cum_diff', axis=alt.Axis(title=None, format='%'))
-    # )
-    # st.altair_chart(cum_diff_chart)
 
 st.altair_chart(stripplot & line)
