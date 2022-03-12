@@ -58,6 +58,11 @@ selected_y = SCORING_TYPE_COL_MATCHING[selected_scoring_type]
 
 strip_plot_selector = alt.selection_single(empty='all', fields=['Player'])
 
+# base = alt.Chart(data).properties(
+#     width=250,
+#     height=250
+# ).add_selection(strip_plot_selector)
+
 stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50).encode(
     x=alt.X(
         'jitter:Q',
@@ -85,30 +90,41 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
 ).transform_calculate(
     # Generate Gaussian jitter with a Box-Muller transform
     jitter='sqrt(-2*log(random()))*cos(2*PI*random())'
-).configure_facet(
-    spacing=0
-).configure_view(
-    stroke=None
-).configure_axis(
-    labelFontSize=16,
-    titleFontSize=16
+).add_selection(
+    strip_plot_selector
 ).properties(
     height=400, 
     width=150
-).add_selection(strip_plot_selector)
+)
+#Something in here was breaking my ability to create a details chart based on selection
+# .configure_facet(
+#     spacing=0
+# ).configure_view(
+#     stroke=None
+# ).configure_axis(
+#     labelFontSize=16,
+#     titleFontSize=16
+# )
 
-#Trying to make a details line chart work here, but unsuccessful so far.
-base = alt.Chart(data).properties(
-    width=250,
-    height=250
-).add_selection(strip_plot_selector)
-
-line = base.mark_line().encode(
+#Selection Details line chart by year
+line = alt.Chart(data).mark_line(
+    point=alt.OverlayMarkDef(color="red")
+    ).encode(
     y='FantPt',
-    x='year'
+    x='year:O'
 ).transform_filter(
     strip_plot_selector
+).properties(
+    height=400, 
+    width=675
 )
-#End of my attempt
 
-st.altair_chart(stripplot)
+    # cum_diff_chart = alt.Chart(cum_series).mark_line(
+    #     point=alt.OverlayMarkDef(color="red")
+    #     ).encode(
+    #     x=x,
+    #     y=alt.Y('cum_diff', axis=alt.Axis(title=None, format='%'))
+    # )
+    # st.altair_chart(cum_diff_chart)
+
+st.altair_chart(stripplot & line)
