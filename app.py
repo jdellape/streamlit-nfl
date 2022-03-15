@@ -34,6 +34,11 @@ selected_scoring_type = st.sidebar.selectbox('Fantasy Point Scoring Style', SCOR
 with st.sidebar.expander("See scoring style details"):
      st.write('feature under construction')
 
+#Allow choice of analysis by total season points OR average points per game
+selected_scoring_agg = st.sidebar.radio(
+     "View Points by",
+     ('Average Per Game', 'Season Total'))
+
 DATA_URL = 'https://raw.githubusercontent.com/jdellape/data-sources/main/nfl/fantasy_points_by_player_by_year.csv'
 
 # Load up data I have hosted on github
@@ -49,14 +54,28 @@ data = load_data(DATA_URL)
 st.header('Write out Raw .csv file containing stats')
 st.write(data)
 
-st.header('Test a Stripplot based on feedack from Caleb')
+st.header('Interactive Stripplot')
+st.markdown("""
+Click on a player to see their year over year statistics in the line chart details. Hold down on the 'Shift' key while clicking 
+to select multiple players at a time.
+""")
 
-#Try the altair plot caleb referenced
-selected_y = SCORING_TYPE_COL_MATCHING[selected_scoring_type]
+def get_y():
+    "Helper function to get the appropriate score column to display on y axis"
+    if selected_scoring_agg == 'Average Per Game':
+        return SCORING_TYPE_COL_MATCHING[selected_scoring_type] + 'pG'
+    else:
+        return SCORING_TYPE_COL_MATCHING[selected_scoring_type]
 
-#strip_plot_selector = alt.selection_single(empty='all', fields=['Player'])
-strip_plot_selector = alt.selection_interval(encodings=['y'])
+#Get user selected y value
+selected_y = get_y()
 
+#Construct altair plot to visualize data
+
+#Create a selector object
+strip_plot_selector = alt.selection_multi(empty='all', fields=['Player'])
+
+#Create a stripplot
 stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50).encode(
     x=alt.X(
         'jitter:Q',
@@ -65,8 +84,8 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
         scale=alt.Scale(),
     ),
     y=alt.Y(f'{selected_y}:Q',
-            scale=alt.Scale(
-                domain=(0, 450)),
+            # scale=alt.Scale(
+            #     domain=(0, 450)),
                 axis=alt.Axis(title=None)),
     color=alt.condition(strip_plot_selector, 'FantPos', alt.value('lightgray'), legend=None),
     #color=alt.condition(interval, 'Origin', alt.value('lightgray')
@@ -101,15 +120,15 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
 #     titleFontSize=16
 # )
 
-#Selection Details line chart by year
+#Create Selection Details line chart by year
 line = alt.Chart(data).mark_line(
     point=alt.OverlayMarkDef(color="red")
     ).encode(
     x='year:O',
-    y='FantPt',
-    color='Player',
+    y=f'{selected_y}:Q',
+    strokeDash='Player',
+    #color='Player',
     tooltip='Player'
-    #strokeDash='Player',
 ).transform_filter(
     strip_plot_selector
 ).properties(
@@ -117,4 +136,5 @@ line = alt.Chart(data).mark_line(
     width=675
 )
 
+#Write out the charts to streamlit app
 st.altair_chart(stripplot & line)
