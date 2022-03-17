@@ -40,19 +40,25 @@ selected_scoring_agg = st.sidebar.radio(
      ('Average Per Game', 'Season Total'))
 
 DATA_URL = 'https://raw.githubusercontent.com/jdellape/data-sources/main/nfl/fantasy_points_by_player_by_year.csv'
+WEEKLY_DATA_URL = 'https://raw.githubusercontent.com/jdellape/data-sources/main/nfl/fantasy_weekly_results_by_player.csv'
 
 # Load up data I have hosted on github
 @st.cache
 def load_data(url):
     data = pd.read_csv(url)
-    data = data[data['FantPos'].isin(['QB','RB','WR','TE'])]
-    data = data[data['FantPt'] >= 0]
     return data
 
+# Load data with notes to user
+data_load_state = st.text('Loading summary data...')
 data = load_data(DATA_URL)
+data_load_state = st.text('Loading weekly fantasy data...')
+weekly_data = load_data(WEEKLY_DATA_URL)
+data_load_state.text('All data loaded!')
 
-st.header('Write out Raw .csv file containing stats')
+st.header('Write out Raw .csv file containing yearly stats')
 st.write(data)
+st.header('Write out Raw .csv file containing weekly stats')
+st.write(weekly_data)
 
 st.header('Interactive Stripplot')
 st.markdown("""
@@ -138,3 +144,36 @@ line = alt.Chart(data).mark_line(
 
 #Write out the charts to streamlit app
 st.altair_chart(stripplot & line)
+
+#Test out hard coded layered density chart
+data_to_chart = weekly_data[weekly_data['player_name'].isin(['Lamar Jackson','Josh Allen','Tom Brady'])]
+data_to_chart = data_to_chart[data_to_chart['fantasy_table_column']=='FantPt']
+st.write(data_to_chart)
+
+
+st.header('Testing a Fantasy Point Density Estimate Chart using Weekly Points Scored')
+st.markdown("""
+This is currently hard coded to compare Tom Brady, Josh Allen and Lamar Jackson from a [density estimate](https://en.wikipedia.org/wiki/Kernel_density_estimation) perspective over last 3 seasons.
+""")
+st.markdown("""
+Need to allow for user input to key in players to compare to one another (allow for max of 3)
+""")
+
+#Density estimate testing (https://altair-viz.github.io/gallery/density_stack.html)
+pdf_chart = alt.Chart(data_to_chart).transform_density(
+    density='value',
+    as_=['value', 'density'],
+    # bandwidth=0.337,
+    groupby=['player_name'],
+    extent= [0, 50]
+    # counts = True
+    # steps=200
+).mark_area(orient='vertical', opacity=0.5).encode(
+    alt.X('value:Q'),
+    alt.Y('density:Q'),
+    alt.Color('player_name:N')
+).properties(height=400, 
+    width=675)
+
+#Write out the chart to streamlit app
+st.altair_chart(pdf_chart)
