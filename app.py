@@ -162,8 +162,8 @@ unique_selected_ids = list(data_to_chart.player_id.unique())
 
 img_urls = [f'https://www.pro-football-reference.com/req/20180910/images/headshots/{id.split("/")[1]}_2021.jpg' for id in unique_selected_ids]
 
-st.write('You selected:', selected_players_to_compare)
-st.image(img_urls)
+st.write('You selected:')
+st.image(img_urls, caption=selected_players_to_compare)
 
 extent_max = data_to_chart.value.max() + 1
 
