@@ -55,10 +55,8 @@ data_load_state = st.text('Loading weekly fantasy data...')
 weekly_data = load_data(WEEKLY_DATA_URL)
 data_load_state.text('All data loaded!')
 
-st.header('Write out Raw .csv file containing yearly stats')
+st.header('Raw .csv data containing yearly stats')
 st.write(data)
-st.header('Write out Raw .csv file containing weekly stats')
-st.write(weekly_data)
 
 st.header('Interactive Stripplot')
 st.markdown("""
@@ -145,35 +143,49 @@ line = alt.Chart(data).mark_line(
 #Write out the charts to streamlit app
 st.altair_chart(stripplot & line)
 
-#Test out hard coded layered density chart
-data_to_chart = weekly_data[weekly_data['player_name'].isin(['Lamar Jackson','Josh Allen','Tom Brady'])]
+#Test out layered density chart
+st.header('Fantasy Point Density Estimate Chart using Weekly Points Scored')
+st.markdown("""
+Select Players from the dropdown below to get a detailed visualization of how their weekly fantasy point distribution compares.
+[Click for more info on density estimates](https://en.wikipedia.org/wiki/Kernel_density_estimation)
+""")
+
+distinct_player_names = list(set(data.Player))
+
+selected_players_to_compare = st.multiselect(
+     'Select Players to Compare',
+     distinct_player_names)
+
+data_to_chart = weekly_data[weekly_data['player_name'].isin(selected_players_to_compare)]
 data_to_chart = data_to_chart[data_to_chart['fantasy_table_column']=='FantPt']
-st.write(data_to_chart)
+unique_selected_ids = list(data_to_chart.player_id.unique()) 
 
+img_urls = [f'https://www.pro-football-reference.com/req/20180910/images/headshots/{id.split("/")[1]}_2021.jpg' for id in unique_selected_ids]
 
-st.header('Testing a Fantasy Point Density Estimate Chart using Weekly Points Scored')
-st.markdown("""
-This is currently hard coded to compare Tom Brady, Josh Allen and Lamar Jackson from a [density estimate](https://en.wikipedia.org/wiki/Kernel_density_estimation) perspective over last 3 seasons.
-""")
-st.markdown("""
-Need to allow for user input to key in players to compare to one another (allow for max of 3)
-""")
+st.write('You selected:', selected_players_to_compare)
+st.image(img_urls)
 
-#Density estimate testing (https://altair-viz.github.io/gallery/density_stack.html)
-pdf_chart = alt.Chart(data_to_chart).transform_density(
-    density='value',
-    as_=['value', 'density'],
-    # bandwidth=0.337,
-    groupby=['player_name'],
-    extent= [0, 50]
-    # counts = True
-    # steps=200
-).mark_area(orient='vertical', opacity=0.5).encode(
-    alt.X('value:Q'),
-    alt.Y('density:Q'),
-    alt.Color('player_name:N')
-).properties(height=400, 
-    width=675)
+extent_max = data_to_chart.value.max() + 1
 
-#Write out the chart to streamlit app
-st.altair_chart(pdf_chart)
+if selected_players_to_compare:
+    #Density estimate testing (https://altair-viz.github.io/gallery/density_stack.html)
+    pdf_chart = alt.Chart(data_to_chart).transform_density(
+        density='value',
+        as_=['value', 'density'],
+        # bandwidth=0.337,
+        groupby=['player_name'],
+        extent= [0, extent_max]
+        # counts = True
+        # steps=200
+    ).mark_area(orient='vertical', opacity=0.5).encode(
+        alt.X('value:Q'),
+        alt.Y('density:Q'),
+        alt.Color('player_name:N')
+    ).properties(height=400, 
+        width=675)
+
+    #Write out the chart to streamlit app
+    st.altair_chart(pdf_chart)
+
+    st.header('Raw weekly data being visualized above')
+    st.write(data_to_chart)
