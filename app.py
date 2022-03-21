@@ -14,14 +14,15 @@ This app helps fantasy football owners make roster decisions by graphing histori
 * **Data source:** [pro-football-reference.com](https://www.pro-football-reference.com/).
 """)
 
-SCORING_TYPES = ['Normal','PPR','DraftKings','FanDuel']
+SCORING_TYPES = ['Normal','PPR', 'Halfpoint PPR', 'DraftKings','FanDuel']
 
-SCORING_TYPE_COL_MATCHING = {'Normal':'FantPt', 'PPR':'PPR', 'DraftKings':'DKPt', 'FanDuel':'FDPt'}
+SCORING_TYPE_COL_MATCHING = {'Normal':'FantPt', 'PPR':'PPR', 'Halfpoint PPR':'HalfpointPPR', 'DraftKings':'DKPt', 'FanDuel':'FDPt'}
 
-SCORING_TYPE_TOOL_TIP = {'Normal':'trad style<br/>  blah blah', 'PPR':'PPR style', 'DraftKings':'Draft Kings Style', 'FanDuel':'Fan Duel Style'}
+SCORING_TYPE_TOOL_TIP = {'Normal':'trad style<br/>  blah blah', 'PPR':'PPR style', 'Halfpoint PPR':'Halfpoint PPR', 'DraftKings':'Draft Kings Style', 'FanDuel':'Fan Duel Style'}
 
 SELECTION_DETAILS_COLS = {'Normal':['FantPt','FantPtpG','Player','year'], 
                           'PPR':['PPR','PPRpG','Player','year'],
+                          'Halfpoint PPR':['HalfpointPPR','HalfpointPPRpG','Player','year'],
                           'DraftKings':['DKPt','DKPtpG','Player','year'], 
                           'FanDuel':['FDPt','FDPtpG','Player','year']}
 
@@ -162,12 +163,13 @@ unique_selected_ids = list(data_to_chart.player_id.unique())
 
 img_urls = [f'https://www.pro-football-reference.com/req/20180910/images/headshots/{id.split("/")[1]}_2021.jpg' for id in unique_selected_ids]
 
-st.write('You selected:')
-st.image(img_urls, caption=selected_players_to_compare)
+# st.write('You selected:')
+
 
 extent_max = data_to_chart.value.max() + 1
 
 if selected_players_to_compare:
+    st.image(img_urls, caption=selected_players_to_compare)
     #Density estimate testing (https://altair-viz.github.io/gallery/density_stack.html)
     pdf_chart = alt.Chart(data_to_chart).transform_density(
         density='value',
