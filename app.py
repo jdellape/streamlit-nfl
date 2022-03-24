@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-st.title('Fantasy Football Data Explorer')
+st.title('Fantasy Football Draft Helper 🏈')
 
 #This code only for allowing tooltips to display when in full screen mode (https://discuss.streamlit.io/t/tool-tips-in-fullscreen-mode-for-charts/6800/8)
 st.markdown('<style>#vg-tooltip-element{z-index: 1000051}</style>',
@@ -29,6 +29,9 @@ SELECTION_DETAILS_COLS = {'Normal':['FantPt','FantPtpG','Player','year'],
 st.sidebar.header('Filter Stripplot By: ')
 selected_year = st.sidebar.selectbox('Year', list(reversed(range(2019,2022))))
 
+#Allow user to enter a point floor
+point_value_floor = st.sidebar.number_input('Point Floor ', value=0, min_value=0)
+
 st.sidebar.header('Set Stripplot y axis:')
 selected_scoring_type = st.sidebar.selectbox('Fantasy Point Scoring Style', SCORING_TYPES)
 
@@ -52,6 +55,7 @@ def load_data(url):
 # Load data with notes to user
 data_load_state = st.text('Loading summary data...')
 data = load_data(DATA_URL)
+distinct_player_names = list(set(data.Player))
 data_load_state = st.text('Loading weekly fantasy data...')
 weekly_data = load_data(WEEKLY_DATA_URL)
 data_load_state.text('All data loaded!')
@@ -65,8 +69,13 @@ Click on a player to see their year over year statistics in the line chart detai
 to select multiple players at a time.
 """)
 
+#Add a new area to allow for a user to indicate which players have already been drafted
+with st.expander('Players Already Drafted'):
+    players_already_drafted = st.multiselect('Indicate Players Already Taken',
+        distinct_player_names)
+
 def get_y():
-    "Helper function to get the appropriate score column to display on y axis"
+    "Helper function to get the appropriate score column to display on stripplot y axis"
     if selected_scoring_agg == 'Average Per Game':
         return SCORING_TYPE_COL_MATCHING[selected_scoring_type] + 'pG'
     else:
@@ -81,7 +90,16 @@ selected_y = get_y()
 strip_plot_selector = alt.selection_multi(empty='all', fields=['Player'])
 
 #Create a stripplot
-stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50).encode(
+#Get the slice of your dataframe to plot
+stripplot_data = data[(data['year'] == selected_year) & (data['Player'].isin(players_already_drafted) == False) & (data[selected_y] >= point_value_floor)]
+
+#Get values to use as the min and max values for the y-axis
+stripplot_y_max = stripplot_data[selected_y].max() + 1
+
+stripplot_y_min = point_value_floor
+
+#compile the plot
+stripplot =  alt.Chart(stripplot_data).mark_circle(size=50).encode(
     x=alt.X(
         'jitter:Q',
         title=None,
@@ -89,8 +107,8 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
         scale=alt.Scale(),
     ),
     y=alt.Y(f'{selected_y}:Q',
-            # scale=alt.Scale(
-            #     domain=(0, 450)),
+            scale=alt.Scale(
+            domain=(stripplot_y_min, stripplot_y_max)),
                 axis=alt.Axis(title=None)),
     color=alt.condition(strip_plot_selector, 'FantPos', alt.value('lightgray'), legend=None),
     #color=alt.condition(interval, 'Origin', alt.value('lightgray')
@@ -104,6 +122,7 @@ stripplot =  alt.Chart(data[data['year'] == selected_year]).mark_circle(size=50)
             labelOrient='bottom',
             labelAlign='center',
             labelPadding=25,
+            labelColor='white'
         ),
     ),
 ).transform_calculate(
@@ -150,8 +169,6 @@ st.markdown("""
 Select Players from the dropdown below to get a detailed visualization of how their weekly fantasy point distribution compares.
 [Click for more info on density estimates](https://en.wikipedia.org/wiki/Kernel_density_estimation)
 """)
-
-distinct_player_names = list(set(data.Player))
 
 selected_players_to_compare = st.multiselect(
      'Select Players to Compare',
