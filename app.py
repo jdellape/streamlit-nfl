@@ -87,7 +87,7 @@ start_year, end_year = st.sidebar.select_slider(
      value=(2019,2021))
 
 #Aggregation function
-selected_agg_func = st.sidebar.radio('Aggregation Method to Apply',['sum','mean','median'])
+selected_agg_func = st.sidebar.radio('Aggregation Method to Apply',['sum','mean'])
 
 #Option to normalize
 selected_to_normalize = st.sidebar.checkbox('Normalize by games played', value=False)
