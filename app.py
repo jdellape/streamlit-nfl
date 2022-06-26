@@ -218,7 +218,7 @@ if selected_players_to_compare:
     x='Player:N',
     y='sum(HalfpointPPR):Q',
     color=alt.Color("Player:N", legend=None)
-    )
+    ).configure_axisX(labelAngle=45)
 
     #Display the chart
     st.altair_chart(simple_bar, use_container_width=True)
