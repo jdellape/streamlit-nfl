@@ -169,7 +169,11 @@ st.altair_chart(stripplot)
 
 #Write out top 10 available players
 st.subheader(f'Top Available by {column_name_to_chart}')
-st.write(stripplot_data.sort_values(by=column_name_to_chart, ascending=False))
+positions_selected = st.multiselect(
+     'Positions Included',
+     options=['QB','RB','WR','TE'],
+     default=['QB','RB','WR','TE'])
+st.write(stripplot_data[stripplot_data['FantPos'].isin(positions_selected)].sort_values(by=column_name_to_chart, ascending=False))
 
 st.header('Watch List Analysis')
 
