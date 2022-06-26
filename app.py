@@ -32,8 +32,8 @@ weekly_data = load_data(WEEKLY_DATA_URL)
 data_load_state.text('All data loaded!')
 
 #Write out raw yearly summary to ui
-st.header('Raw .csv data containing yearly stats')
-st.write(data)
+# st.header('Raw .csv data containing yearly stats')
+# st.write(data)
 
 
 SCORING_TYPES = ['Normal','PPR', 'Halfpoint PPR', 'DraftKings','FanDuel']
@@ -105,10 +105,9 @@ column_name_to_chart = get_y(selected_scoring_type, selected_to_normalize)
 
 pivot_df = get_pivot_table(data, start_year, end_year, selected_agg_func, column_name_to_chart)
 
-st.header('Interactive Stripplot')
+st.header('Stripplot by Position')
 st.markdown("""
-Click on a player to see their year over year statistics in the line chart details. Hold down on the 'Shift' key while clicking 
-to select multiple players at a time.
+Hover over points on the chart to view player name and fantasy point value.
 """)
 
 #Add a new area to allow for a user to indicate which players have already been drafted
@@ -116,10 +115,11 @@ with st.expander('Players Already Drafted'):
     players_already_drafted = st.multiselect('Indicate Players Already Taken',
         distinct_player_names)
 
-#Construct altair plot to visualize data
-
-#Create a selector object
-strip_plot_selector = alt.selection_multi(empty='all', fields=['Player'])
+#Add an area to allow for a user to indicate which players he's watching to draft next
+with st.expander('Player Watch List'):
+    selected_players_to_compare = st.multiselect(
+     'Select Players to Watch',
+     distinct_player_names)
 
 #Create a stripplot
 #Get the slice of your dataframe to plot
@@ -142,8 +142,7 @@ stripplot =  alt.Chart(stripplot_data).mark_circle(size=50).encode(
             scale=alt.Scale(
             domain=(stripplot_y_min, stripplot_y_max)),
                 axis=alt.Axis(title=None)),
-    color=alt.condition(strip_plot_selector, 'FantPos', alt.value('lightgray'), legend=None),
-    #color=alt.condition(interval, 'Origin', alt.value('lightgray')
+    color=alt.Color('FantPos', legend=None),
     tooltip=['Player', column_name_to_chart],
     column=alt.Column(
         'FantPos:N',
@@ -160,63 +159,76 @@ stripplot =  alt.Chart(stripplot_data).mark_circle(size=50).encode(
 ).transform_calculate(
     # Generate Gaussian jitter with a Box-Muller transform
     jitter='sqrt(-2*log(random()))*cos(2*PI*random())'
-).add_selection(
-    strip_plot_selector
 ).properties(
     height=400, 
     width=150
 )
-#Something in here was breaking my ability to create a details chart based on selection
-# .configure_facet(
-#     spacing=0
-# ).configure_view(
-#     stroke=None
-# ).configure_axis(
-#     labelFontSize=16,
-#     titleFontSize=16
-# )
-
-#Create Selection Details line chart by year
-line = alt.Chart(data).mark_line(
-    point=alt.OverlayMarkDef(color="red")
-    ).encode(
-    x='year:O',
-    y=f'{column_name_to_chart}:Q',
-    strokeDash='Player',
-    #color='Player',
-    tooltip='Player'
-).transform_filter(
-    strip_plot_selector
-).properties(
-    height=400, 
-    width=675
-)
 
 #Write out the charts to streamlit app
-st.altair_chart(stripplot & line)
+st.altair_chart(stripplot)
 
-#Create layered density chart for detailed player comparison
-st.header('Fantasy Point Density Estimate Chart using Weekly Points Scored')
-st.markdown("""
-Select Players from the dropdown below to get a detailed visualization of how their weekly fantasy point distribution compares.
-[Click for more info on density estimates](https://en.wikipedia.org/wiki/Kernel_density_estimation)
-""")
+#Write out top 10 available players
+st.subheader(f'Top Available by {column_name_to_chart}')
+st.write(stripplot_data.sort_values(by=column_name_to_chart, ascending=False))
 
-selected_players_to_compare = st.multiselect(
-     'Select Players to Compare',
-     distinct_player_names)
+st.header('Watch List Analysis')
 
-data_to_chart = weekly_data[weekly_data['player_name'].isin(selected_players_to_compare)]
-data_to_chart = data_to_chart[data_to_chart['fantasy_table_column']=='FantPt']
-unique_selected_ids = list(data_to_chart.player_id.unique()) 
-
-img_urls = [f'https://www.pro-football-reference.com/req/20180910/images/headshots/{id.split("/")[1]}_2021.jpg' for id in unique_selected_ids]
-
-extent_max = data_to_chart.value.max() + 1
-
+#Create Charts based upon Players to Watch
 if selected_players_to_compare:
+    #Need to refactor variable names here
+    data_to_chart = weekly_data[weekly_data['player_name'].isin(selected_players_to_compare)]
+    data_to_chart = data_to_chart[data_to_chart['fantasy_table_column']=='FantPt']
+    
+    #Get player image .jpg files and display them on screen
+    unique_selected_ids = list(data_to_chart.player_id.unique()) 
+    img_urls = [f'https://www.pro-football-reference.com/req/20180910/images/headshots/{id.split("/")[1]}_2021.jpg' for id in unique_selected_ids]
     st.image(img_urls, caption=selected_players_to_compare)
-    #Density estimate testing (https://altair-viz.github.io/gallery/density_stack.html)
+
+    #Reshape data for a trellis bar chart: https://altair-viz.github.io/gallery/bar_chart_trellis_compact.html
+    trellis_data = data[data['Player'].isin(selected_players_to_compare)]
+    trellis_data = trellis_data[['Player','year','HalfpointPPR','HalfpointPPRpG']]
+    trellis_data = pd.melt(trellis_data, id_vars =['Player','year'], value_vars =['HalfpointPPR', 'HalfpointPPRpG'])
+
+    #Construct trellis chart
+    trellis_chart = alt.Chart(trellis_data).mark_bar().encode(
+    y=alt.Y("Player:N", axis=None),
+    x=alt.X("value:Q", title=None),
+    color=alt.Color(
+        "Player:N", title="Players", legend=alt.Legend(orient="bottom", titleOrient="left")
+    ),
+    row=alt.Row("year:O", title="Year", header=alt.Header(labelAngle=0)),
+    column=alt.Column("variable:N", title="Metric")
+    ).resolve_scale(x='independent')
+    #Display trellis chart to user
+    st.altair_chart(trellis_chart)
+
+    #Create a simple bar chart to sum player totals across all shared years with points
+    simple_bar_data = data[data['Player'].isin(selected_players_to_compare)]
+    #Filter data so that only years are included where each player being watched registered points within the year
+    year_value_counts = simple_bar_data['year'].value_counts()
+    years_to_include = list(year_value_counts[year_value_counts ==  len(selected_players_to_compare)].index)
+    simple_bar_data = simple_bar_data[simple_bar_data['year'].isin(years_to_include)]
+
+    #Construct the chart
+    simple_bar = alt.Chart(simple_bar_data).mark_bar().encode(
+    x='Player:N',
+    y='sum(HalfpointPPR):Q',
+    color=alt.Color("Player:N", legend=None)
+    )
+
+    #Display the chart
+    st.altair_chart(simple_bar, use_container_width=True)
+
+    #Create layered density chart for detailed player comparison
+    st.header('Fantasy Point Density Estimate Chart using Weekly Points Scored')
+    st.markdown("""
+    [Click for more info on density estimates](https://en.wikipedia.org/wiki/Kernel_density_estimation)
+    """)
+    
+    extent_max = data_to_chart.value.max() + 1
+
+    #Density estimate (https://altair-viz.github.io/gallery/density_stack.html)
+    #Need this to be refactored so that halfpointppr is displayed
     pdf_chart = alt.Chart(data_to_chart).transform_density(
         density='value',
         as_=['value', 'density'],
