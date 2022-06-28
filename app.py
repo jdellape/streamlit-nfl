@@ -24,12 +24,10 @@ def load_data(url):
     return data
 
 # Load data with notes to user
-data_load_state = st.text('Loading summary data...')
-data = load_data(DATA_URL)
+with st.spinner('Loading Data....'):
+    data = load_data(DATA_URL)
+    weekly_data = load_data(WEEKLY_DATA_URL)
 distinct_player_names = list(set(data.Player))
-data_load_state = st.text('Loading weekly fantasy data...')
-weekly_data = load_data(WEEKLY_DATA_URL)
-data_load_state.text('All data loaded!')
 
 #Write out raw yearly summary to ui
 # st.header('Raw .csv data containing yearly stats')
@@ -116,10 +114,10 @@ with st.expander('Players Already Drafted'):
         distinct_player_names)
 
 #Add an area to allow for a user to indicate which players he's watching to draft next
-with st.expander('Player Watch List'):
-    selected_players_to_compare = st.multiselect(
-     'Select Players to Watch',
-     distinct_player_names)
+# with st.expander('Player Watch List'):
+#     selected_players_to_compare = st.multiselect(
+#      'Select Players to Watch',
+#      distinct_player_names)
 
 #Create a stripplot
 #Get the slice of your dataframe to plot
@@ -166,6 +164,12 @@ stripplot =  alt.Chart(stripplot_data).mark_circle(size=50).encode(
 
 #Write out the charts to streamlit app
 st.altair_chart(stripplot)
+
+#Add an area to allow for a user to indicate which players he's watching to draft next
+with st.expander('Player Watch List'):
+    selected_players_to_compare = st.multiselect(
+     'Select Players to Watch',
+     list(set(data.Player).difference(set(players_already_drafted))))
 
 #Write out top 10 available players
 st.subheader(f'Top Available by {column_name_to_chart}')
