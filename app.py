@@ -193,18 +193,36 @@ if selected_players_to_compare:
     trellis_data = trellis_data[['Player','year','HalfpointPPR','HalfpointPPRpG']]
     trellis_data = pd.melt(trellis_data, id_vars =['Player','year'], value_vars =['HalfpointPPR', 'HalfpointPPRpG'])
 
-    #Construct trellis chart
-    trellis_chart = alt.Chart(trellis_data).mark_bar().encode(
-    y=alt.Y("Player:N", axis=None),
-    x=alt.X("value:Q", title=None),
-    color=alt.Color(
-        "Player:N", title="Players", legend=alt.Legend(orient="bottom", titleOrient="left")
-    ),
-    row=alt.Row("year:O", title="Year", header=alt.Header(labelAngle=0)),
-    column=alt.Column("variable:N", title="Metric")
-    ).resolve_scale(x='independent')
-    #Display trellis chart to user
-    st.altair_chart(trellis_chart)
+    st.subheader('HalpointPPR by Season')
+    #Create columns for two horizontal bar charts
+    col1, space, col2 = st.columns((1, .1, 1))
+    # row1_space1, row1_1, row1_space2, row1_2, row1_space3 = st.columns(
+    # (.1, 1, .1, 1, .1))
+    with col1:
+        st.text('Season Total')
+        trellis_chart_one = alt.Chart(trellis_data[trellis_data['variable']=='HalfpointPPR']).mark_bar().encode(
+        y=alt.Y("Player:N", axis=None),
+        x=alt.X("value:Q", title=None),
+        color=alt.Color(
+            "Player:N", title="Players", legend=alt.Legend(orient="bottom", titleOrient="left")
+        ),
+        row=alt.Row("year:O", title="Year", header=alt.Header(labelAngle=0)),
+        ).resolve_scale(x='shared')
+        #Display trellis chart to user
+        st.altair_chart(trellis_chart_one, use_container_width=True)
+
+    with col2:
+        st.text('Avg. by Games Played')
+        trellis_chart_two = alt.Chart(trellis_data[trellis_data['variable']=='HalfpointPPRpG']).mark_bar().encode(
+        y=alt.Y("Player:N", axis=None),
+        x=alt.X("value:Q", title=None),
+        color=alt.Color(
+            "Player:N", legend=None
+        ),
+        row=alt.Row("year:O", header=alt.Header(labelExpr="''", title=None)),
+        ).resolve_scale(x='shared')
+        #Display trellis chart to user
+        st.altair_chart(trellis_chart_two, use_container_width=True)
 
     #Create a simple bar chart to sum player totals across all shared years with points
     simple_bar_data = data[data['Player'].isin(selected_players_to_compare)]
